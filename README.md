@@ -70,11 +70,7 @@ aws kms decrypt
 	--query Plaintext > ~/decrypted.txt
 ```
 
-Steps to securely store secrets for use in an application without ever persisting them unencrypted and
-at rest:
+Note: In the localstack implementation, anyone can encrypt using a key by default, but cannot decrypt
+without an appropriate policy/role that allows them to decrypt.  This can be done with a aws_kms_grant
+in Terraform.  However, localstack doesn't implement grant so I'm not able to try it.
 
-* Use terraform to create your customer managed key in KMS
-* Create a plaintext file containing JSON credentials that is _NOT_ checked into version control.
-* Run a docker AWS CLI container that is given your AWS credentials, configuration, and plain text to encrypt.  
-It will run the ```aws kms encrypt``` command to give you back the ciphertext.
-*
