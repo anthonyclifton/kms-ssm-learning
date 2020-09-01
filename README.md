@@ -21,3 +21,60 @@ also handles key rotation for you, has a low costs, and allows cross-account acc
 * https://aws.amazon.com/secrets-manager/
 * https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret
 * https://blog.gruntwork.io/a-comprehensive-guide-to-managing-secrets-in-your-terraform-code-1d586955ace1
+
+Terrform snippet to create a Customer Managed Key and then use it in a data block to encrypt an
+arbitrary JSON object:
+
+```
+  resource "aws_kms_key" "oauth_config" {
+    description = "oauth config"
+    is_enabled  = true
+    enable_key_rotation = true
+  }
+
+  data "aws_kms_ciphertext" "oauth" {
+    key_id = "${aws_kms_key.oauth_config.key_id}"
+
+    plaintext = <<EOF
+    {
+      "client_id": "e587dbae22222f55da22",
+      "client_secret": "8289575d00000ace55e1815ec13673955721b8a5"
+    }
+    EOF
+  }
+
+  output "ciphertext" {
+    value = "${data.aws_kms_ciphertext.oauth.ciphertext_blob}"
+  }
+```
+
+Once you have the CMK set up, assuming you have privileges to use it, you can encrypt any file like so:
+
+https://random.ac/cess/2017/02/04/simple-aws-cli-kms-encrypt-decrypt-example/
+
+```
+aws kms encrypt 
+	--key-id [key-id] 
+	--plaintext fileb://<(cat ~/plaintext.txt) 
+	--query CiphertextBlob 
+	--output text > ~/ciphertext.txt
+```
+
+Then you can use the same key-id to decrypt the file:
+
+```
+aws kms decrypt 
+	--key-id [key-id]
+	--ciphertext-blob fileb://<(cat ~/ciphertext.txt) 
+	--output text 
+	--query Plaintext > ~/decrypted.txt
+```
+
+Steps to securely store secrets for use in an application without ever persisting them unencrypted and
+at rest:
+
+* Use terraform to create your customer managed key in KMS
+* Create a plaintext file containing JSON credentials that is _NOT_ checked into version control.
+* Run a docker AWS CLI container that is given your AWS credentials, configuration, and plain text to encrypt.  
+It will run the ```aws kms encrypt``` command to give you back the ciphertext.
+*
